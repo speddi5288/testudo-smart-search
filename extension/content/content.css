@@ -1,0 +1,142 @@
+#tss-root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #e21833; /* UMD red */
+  padding: 10px 16px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  position: relative;
+  z-index: 9999;
+}
+
+#tss-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+#tss-input {
+  flex: 1;
+  padding: 9px 14px;
+  font-size: 15px;
+  border: none;
+  border-radius: 6px;
+  outline: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+#tss-input:focus {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.45);
+}
+
+#tss-btn {
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #fff;
+  color: #e21833;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+#tss-btn:hover {
+  background: #f1f1f1;
+}
+
+#tss-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#tss-spinner {
+  font-size: 18px;
+}
+
+/* Results panel */
+#tss-results {
+  max-width: 800px;
+  margin: 8px auto 0;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.tss-heading {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 14px 6px;
+  margin: 0;
+  border-bottom: 1px solid #eee;
+}
+
+.tss-card {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.1s;
+}
+
+.tss-card:last-child {
+  border-bottom: none;
+}
+
+.tss-card:hover {
+  background: #fafafa;
+}
+
+.tss-card-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.tss-course-id {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e21833;
+  min-width: 72px;
+}
+
+.tss-course-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+  flex: 1;
+}
+
+.tss-score {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.tss-reason {
+  font-size: 13px;
+  color: #555;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.tss-empty,
+.tss-error {
+  font-size: 14px;
+  color: #666;
+  padding: 16px 14px;
+  margin: 0;
+}
+
+.tss-error {
+  color: #c0392b;
+}
