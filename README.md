@@ -2,7 +2,7 @@
 
 A Chrome extension that adds AI-powered semantic course search to [app.testudo.umd.edu](https://app.testudo.umd.edu). Instead of searching by course code, type natural language queries like *"brain science"*, *"intro to machine learning"*, or *"personal finance"* and get back the top 5 matching UMD courses ranked by relevance.
 
-![UMD Red search bar injected at the top of Testudo](https://i.imgur.com/placeholder.png)
+<img width="959" height="383" alt="image" src="https://github.com/user-attachments/assets/e655c41f-20c1-493e-a3af-90905ef17343" />
 
 ---
 
