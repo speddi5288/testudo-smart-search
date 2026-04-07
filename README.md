@@ -1,18 +1,21 @@
 # Testudo Smart Search
 
-A Chrome extension that adds AI-powered semantic course search to [app.testudo.umd.edu](https://app.testudo.umd.edu). Instead of searching by course code, type natural language queries like *"brain science"*, *"intro to machine learning"*, or *"personal finance"* and get back the top 5 matching UMD courses ranked by relevance.
+A Chrome extension that adds semantic course search to [app.testudo.umd.edu](https://app.testudo.umd.edu). Instead of searching by course code, type natural language queries like *"brain science"*, *"intro to machine learning"*, or *"pickleball"* and get back the top matching UMD courses ranked by relevance.
 
 <img width="959" height="383" alt="image" src="https://github.com/user-attachments/assets/e655c41f-20c1-493e-a3af-90905ef17343" />
+
+All search runs **entirely in your browser** — no backend, no API keys, no ongoing costs.
 
 ---
 
 ## How It Works
 
-1. The Chrome extension injects a search bar at the top of Testudo
-2. You type a natural language query and hit Enter
-3. The extension sends your query to a local FastAPI backend
-4. The backend uses Claude AI (Haiku model) to rank courses from the full UMD catalog
-5. Top 5 results appear with course codes, titles, match scores, and a reason for each match
+1. The extension injects a search bar at the top of Testudo
+2. You type a natural language query and press Enter
+3. A local ML model (running via WebAssembly in the browser) compares your query against pre-computed embeddings for every UMD course
+4. Top results appear with course codes, titles, match scores, and descriptions — click any result to jump straight to that course on Testudo
+
+The model downloads from HuggingFace on first use (~23 MB) and is cached in your browser permanently after that.
 
 ---
 
@@ -20,32 +23,40 @@ A Chrome extension that adds AI-powered semantic course search to [app.testudo.u
 
 ```
 testudo-smart-search/
-├── backend/
-│   ├── main.py        # FastAPI server (GET /health, POST /search, POST /refresh-courses)
-│   ├── scraper.py     # Fetches UMD course catalog from umd.io API and caches it
-│   ├── search.py      # Keyword pre-filter + Claude semantic ranking
-│   └── models.py      # Pydantic data models
-├── extension/
-│   ├── manifest.json          # Chrome Extension Manifest V3
+├── backend/                        # One-time data fetching (not needed after setup)
+│   ├── main.py                     # FastAPI server to populate the course cache
+│   ├── scraper.py                  # Paginates umd.io API -> backend/cache/courses.json
+│   ├── search.py                   # Pydantic models and search utilities
+│   └── models.py                   # Pydantic models
+├── extension/                      # The Chrome extension
+│   ├── manifest.json               # Manifest V3
 │   ├── content/
-│   │   ├── content.js         # Injects search UI into Testudo pages
-│   │   └── content.css        # UMD-themed styles
+│   │   ├── content.js              # Injects search UI into Testudo
+│   │   └── content.css             # UMD-themed styles
 │   ├── background/
-│   │   └── service_worker.js  # Relays search requests to backend
-│   └── icons/
-├── main.py            # Uvicorn entry point
-└── pyproject.toml     # Python dependencies
+│   │   └── service_worker.js       # Creates offscreen document, relays messages
+│   ├── offscreen/
+│   │   ├── offscreen.html          # Hidden page that hosts the ML runtime
+│   │   └── offscreen.js            # Loads Transformers.js, runs cosine similarity search
+│   ├── data/                       # courses_embeddings.json goes here (generated, not committed)
+│   └── lib/                        # transformers.min.js goes here (downloaded, not committed)
+├── scripts/
+│   ├── generate_embeddings.py      # Encodes all courses -> extension/data/courses_embeddings.json
+│   └── download_transformers_js.py # Downloads Transformers.js -> extension/lib/
+├── main.py                         # Uvicorn entry point (setup only)
+└── pyproject.toml                  # Python dependencies
 ```
 
 ---
 
-## Setup
+## Developer Setup
+
+These steps are only needed once to generate the data files bundled with the extension.
 
 ### Prerequisites
 - Python 3.11+
-- [uv](https://github.com/astral-sh/uv) package manager
+- [uv](https://github.com/astral-sh/uv)
 - Google Chrome
-- An [Anthropic API key](https://console.anthropic.com)
 
 ### 1. Clone the repo
 
@@ -60,60 +71,67 @@ cd testudo-smart-search
 uv sync
 ```
 
-### 3. Add your API key
+### 3. Fetch the UMD course catalog
 
-Create a `.env` file in the project root:
-
-```
-ANTHROPIC_API_KEY=sk-ant-...your-key-here...
-```
-
-### 4. Start the backend
+Start the backend once to populate the local course cache (~4,800 courses from [umd.io](https://umd.io)):
 
 ```bash
 uv run python main.py
+# Wait for "Application startup complete", then Ctrl-C
 ```
 
-On first run, the server will automatically fetch and cache all ~4,800 UMD courses from [umd.io](https://umd.io). This takes about 2–3 minutes. Subsequent starts are instant.
+### 4. Generate course embeddings
 
-### 5. Load the Chrome extension
+```bash
+uv sync --group scripts
+uv run python scripts/generate_embeddings.py
+```
+
+Encodes every course description into a semantic vector and saves to `extension/data/courses_embeddings.json` (~11 MB). Takes 1-3 minutes on CPU.
+
+### 5. Download Transformers.js
+
+```bash
+uv run python scripts/download_transformers_js.py
+```
+
+Downloads the Transformers.js library (~876 KB) into `extension/lib/`.
+
+### 6. Load the extension in Chrome
 
 1. Open `chrome://extensions`
-2. Enable **Developer mode** (top right)
+2. Enable **Developer mode** (top-right toggle)
 3. Click **Load unpacked**
 4. Select the `extension/` folder
 
-### 6. Use it
+### 7. Use it
 
-Visit [https://app.testudo.umd.edu/soc/](https://app.testudo.umd.edu/soc/) — a red search bar will appear at the top of the page. Type any query and press Enter.
+Visit [https://app.testudo.umd.edu/soc/](https://app.testudo.umd.edu/soc/). A red search bar will appear at the top. Type any query and press Enter.
 
----
-
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/health` | Health check — returns number of courses loaded |
-| `POST` | `/search` | Body: `{"query": "your query"}` — returns top 5 ranked courses |
-| `POST` | `/refresh-courses` | Re-fetches the course catalog from umd.io |
+> **First search:** The ML model (~23 MB) downloads from HuggingFace and caches in your browser. This takes 15-30 seconds. Every search after that is instant.
 
 ---
 
-## Cost
+## What Is and Is Not Committed
 
-Each search costs approximately **$0.002–0.004** (less than half a cent) using Claude Haiku, the cheapest Claude model. A $5 API credit covers ~1,000–2,500 searches.
+| File | Committed? | How to recreate |
+|---|---|---|
+| `backend/cache/courses.json` | No | `uv run python main.py` |
+| `extension/data/courses_embeddings.json` | No | `uv run python scripts/generate_embeddings.py` |
+| `extension/lib/transformers.min.js` | No | `uv run python scripts/download_transformers_js.py` |
+| `.env` | No | Not needed (no API keys required) |
 
 ---
 
 ## Data Source
 
-Course data is sourced from [umd.io](https://umd.io), a free and open UMD API. No authentication required.
+Course data comes from [umd.io](https://umd.io), a free and open UMD API. No authentication required.
 
 ---
 
 ## Tech Stack
 
-- **Backend**: Python, FastAPI, Anthropic SDK, httpx
+- **ML inference**: [Transformers.js](https://github.com/xenova/transformers.js) + `all-MiniLM-L6-v2` (WebAssembly, runs in-browser)
+- **Embeddings**: [sentence-transformers](https://www.sbert.net/) (Python, one-time offline generation)
 - **Extension**: Vanilla JavaScript, Chrome Manifest V3
-- **AI**: Claude Haiku (claude-haiku-4-5)
-- **Data**: umd.io course API
+- **Data**: umd.io course API, FastAPI (setup only)

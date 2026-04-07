@@ -65,7 +65,7 @@
         showError(
           (resp && resp.error) ||
             chrome.runtime.lastError?.message ||
-            "Unknown error. Is the backend running?"
+            "Search failed. Try again."
         );
         return;
       }
@@ -82,12 +82,55 @@
     }
   });
 
-  // Close results when clicking outside
-  document.addEventListener("click", (e) => {
-    if (!root.contains(e.target)) {
-      results.hidden = true;
-    }
-  });
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  // Get the current term id (e.g. "202608") from the page — checks URL params,
+  // then the term selector dropdown testudo renders on the page.
+  function getTerm() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("termId")) return params.get("termId");
+    const sel = document.querySelector('select[name="termId"], #termId');
+    if (sel && sel.value) return sel.value;
+    return "";
+  }
+
+  // Return at most the first two sentences of a description string.
+  function twoSentences(text) {
+    if (!text) return "";
+    const sentences = text.match(/[^.!?]*[.!?]+/g);
+    if (!sentences) return text.trim();
+    return sentences.slice(0, 2).join(" ").trim();
+  }
+
+  function courseUrl(courseId) {
+    const p = new URLSearchParams({
+      courseId,
+      sectionId: "",
+      termId: getTerm(),
+      _openSectionsOnly: "on",
+      creditCompare: "",
+      credits: "",
+      courseLevelFilter: "ALL",
+      instructor: "",
+      _facetoface: "on",
+      _blended: "on",
+      _online: "on",
+      courseStartCompare: "",
+      courseStartHour: "",
+      courseStartMin: "",
+      courseStartAM: "",
+      courseEndHour: "",
+      courseEndMin: "",
+      courseEndAM: "",
+      teachingCenter: "ALL",
+      _classDay1: "on",
+      _classDay2: "on",
+      _classDay3: "on",
+      _classDay4: "on",
+      _classDay5: "on",
+    });
+    return `https://app.testudo.umd.edu/soc/search?${p.toString()}`;
+  }
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -106,14 +149,32 @@
       return;
     }
 
+    // Heading row with Clear button
+    const headingRow = document.createElement("div");
+    headingRow.className = "tss-heading-row";
+
     const heading = document.createElement("p");
     heading.className = "tss-heading";
     heading.textContent = `Top results for "${data.query}"`;
-    results.appendChild(heading);
+
+    const clearBtn = document.createElement("button");
+    clearBtn.className = "tss-clear";
+    clearBtn.textContent = "Clear";
+    clearBtn.addEventListener("click", () => {
+      results.hidden = true;
+      results.innerHTML = "";
+    });
+
+    headingRow.appendChild(heading);
+    headingRow.appendChild(clearBtn);
+    results.appendChild(headingRow);
 
     data.results.forEach((r) => {
-      const card = document.createElement("div");
+      const card = document.createElement("a");
       card.className = "tss-card";
+      card.href = courseUrl(r.course_id);
+      card.target = "_blank";
+      card.rel = "noopener noreferrer";
 
       const top = document.createElement("div");
       top.className = "tss-card-top";
@@ -135,12 +196,16 @@
       top.appendChild(title);
       top.appendChild(badge);
 
-      const reason = document.createElement("p");
-      reason.className = "tss-reason";
-      reason.textContent = r.reason;
-
       card.appendChild(top);
-      card.appendChild(reason);
+
+      const desc = twoSentences(r.description);
+      if (desc) {
+        const descEl = document.createElement("p");
+        descEl.className = "tss-reason";
+        descEl.textContent = desc;
+        card.appendChild(descEl);
+      }
+
       results.appendChild(card);
     });
 

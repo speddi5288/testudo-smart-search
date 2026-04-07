@@ -1,19 +1,41 @@
-const BACKEND = "http://localhost:8000";
+/**
+ * Service worker — manages the offscreen document and relays search messages.
+ *
+ * Message flow:
+ *   content.js  →(SEARCH)→  service_worker.js  →(OFFSCREEN_SEARCH)→  offscreen.js
+ *   offscreen.js →(sendResponse)→ service_worker.js →(sendResponse)→ content.js
+ */
+
+const OFFSCREEN_URL = chrome.runtime.getURL('offscreen/offscreen.html');
+
+async function ensureOffscreen() {
+    try {
+        await chrome.offscreen.createDocument({
+            url: OFFSCREEN_URL,
+            reasons: ['WORKERS'],
+            justification: 'Run Transformers.js WebAssembly for semantic course search',
+        });
+    } catch (e) {
+        // Throws if the document already exists — that's fine, ignore it.
+        if (!e.message?.includes('already') && !e.message?.includes('single')) throw e;
+    }
+}
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg.type !== "SEARCH") return false;
+    if (msg.type !== 'SEARCH') return false;
 
-  fetch(`${BACKEND}/search`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query: msg.query }),
-  })
-    .then((r) => {
-      if (!r.ok) throw new Error(`Backend returned ${r.status}`);
-      return r.json();
-    })
-    .then((data) => sendResponse({ ok: true, data }))
-    .catch((err) => sendResponse({ ok: false, error: err.message }));
+    (async () => {
+        try {
+            await ensureOffscreen();
+            const resp = await chrome.runtime.sendMessage({
+                type: 'OFFSCREEN_SEARCH',
+                query: msg.query,
+            });
+            sendResponse(resp);
+        } catch (err) {
+            sendResponse({ ok: false, error: err.message });
+        }
+    })();
 
-  return true; // keep message channel open for async response
+    return true; // keep message channel open for async response
 });

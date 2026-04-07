@@ -31,6 +31,10 @@ backend/cache/
 *.sqlite
 *.db
 
+# Generated extension assets — run setup scripts to recreate these
+extension/data/courses_embeddings.json
+extension/lib/transformers.min.js
+
 # Logs
 *.log
 logs/
@@ -46,6 +50,7 @@ logs/
 
 # Claude Code
 .claude/
+CLAUDE.md
 
 # OS
 .DS_Store
